@@ -1,4 +1,3 @@
-import ast
 import operator as op
 import re
 from math import log

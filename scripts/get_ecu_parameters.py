@@ -1,24 +1,22 @@
-import os
-import json
+from typing import Any, Generator
 import pandas as pd
 import duckdb
-import inquirer
 
 from read_csv import t100, t101, t102, t141, t144, t150, t155, t160, t161, t162, t191
 
-def get_ecu_identifiers(profile_identifier) -> pd.DataFrame:
+def get_ecu_identifiers(profile_identifier: str) -> pd.DataFrame:
     return duckdb.query(f"""
                  SELECT p.title, e.identifier as EcuIdentifier, e.name as EcuName, ev.identifier as EcuVariantIdentifier, et.identifier as EcuTypeIdentifier
                  FROM t161 p
-                 INNER JOIN t160 dev ON dev.fkt161_profile = p.id
-                 INNER JOIN t100 ev ON ev.id = dev.fkt100_ecuvariant
-                 INNER JOIN t101 e ON e.id = ev.fkt101_ecu
-                 INNER JOIN t102 et on et.id = e.fkt102_ecutype
+                 INNER JOIN t160 dev ON dev.fkT161_Profile = p.id
+                 INNER JOIN t100 ev ON ev.id = dev.fkT100_EcuVariant
+                 INNER JOIN t101 e ON e.id = ev.fkT101_Ecu
+                 INNER JOIN t102 et on et.id = e.fkT102_EcuType
                  WHERE p.identifier = '{profile_identifier}'
                  ORDER BY e.identifier
     """).to_df()
 
-def get_can_parameters(ecu_identifier) -> pd.DataFrame:
+def get_can_parameters(ecu_identifier: str) -> pd.DataFrame:
     # AND NOT td.data = '' AND NOT b.name = 'As usage only'
     return duckdb.query(f"""
                  SELECT DISTINCT ev.id as EcuID, ev.identifier as EcuIdentifier, b.name as BlockName, b.offset, b.length, bvparent.CompareValue as HexValue, s.definition as Conversion, b.fkT190_Text as TextID, td.data as Text, td2.data as Unit
