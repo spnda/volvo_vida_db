@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from typing import Any, Generator
 import pandas as pd
 import duckdb
@@ -33,21 +35,17 @@ def get_can_parameters(ecu_identifier: str) -> pd.DataFrame:
                  ORDER BY td.data
     """).to_df()
 
-# All the profile identifiers as determined with find_vehicle_profiles.py
-# Change this to whatever that script outputs
-model_identifiers = ['0b00c8af8020c059', '0b00c8af823216ee', '0b00c8af8247622b']
+def get_can_parameters_for_profiles(profile_identifiers: list[str]) -> Generator[tuple[str, str, pd.DataFrame], Any, None]:
+    for profile in profile_identifiers:
+        ecus = get_ecu_identifiers(profile)
+        for idx, row in ecus.iterrows():
+            can_data = get_can_parameters(row['EcuVariantIdentifier'])
+            yield (row['EcuVariantIdentifier'], row['EcuIdentifier'], can_data)
 
-for id in model_identifiers:
-    print(f"\nGetting ECU identifiers for profile {id}...")
-    ecu_identifiers = get_ecu_identifiers(id)
-    print(ecu_identifiers)
-
-    if not os.path.exists('ecu'):
-        os.mkdir('ecu')
-    first_idx = 0
-    for idx, row in ecu_identifiers.iterrows():
-        if idx < first_idx:
-            continue
-        parameters = get_can_parameters(row['EcuVariantIdentifier'])
-        parameters.to_csv(f'ecu/{row["EcuTypeIdentifier"]}_{row["EcuIdentifier"]}.csv', sep=',', encoding='utf-8', index=False)
-        print(f"Finished writing parameters for {row['EcuIdentifier']}. {idx + 1}/{len(ecu_identifiers)} written.")
+if __name__ == '__main__':
+    # All the profile identifiers as determined with find_vehicle_profiles.py
+    # Change this to whatever that script outputs
+    profiles = ['0b00c8af8020c059', '0b00c8af823216ee', '0b00c8af8247622b']
+    for params in get_can_parameters_for_profiles(profiles):
+        params[2].to_csv(f'ecu/{params[1]}_{params[0]}.csv', sep=',', encoding='utf-8', index=False)
+        print(f'Written CAN data to CSV: {params[1]}_{params[0]}')

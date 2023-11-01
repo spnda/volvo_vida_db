@@ -1,6 +1,9 @@
+#!/usr/bin/env python3
+
 import operator as op
 import re
 from math import log
+import sys
 
 operators = {
     '+': op.add,
@@ -145,3 +148,10 @@ def parse_conversion(expr: str) -> Node:
 
 def evaluate_conversion(x: int, conversion: str) -> float:
     return evaluate_ast(parse_conversion(conversion), x)
+
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        print('Usage: evaluate_conversion.py <integer value for x> <expression>')
+    else:
+        print(evaluate_conversion(int(sys.argv[1]), sys.argv[2]))
+    
