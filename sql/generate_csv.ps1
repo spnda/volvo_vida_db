@@ -1,15 +1,12 @@
-# These are the credentials of the VIDA database put into a PSCredential object for use with Invoke-Sqlcmd
-$password = 'GunnarS3g3' | ConvertTo-SecureString -AsPlainText -Force
-$credentials = New-Object System.Management.Automation.PSCredential -ArgumentList 'sa', $password
+. $PSScriptRoot\sql_server.ps1
 
-$parameters = @{
-    ServerInstance = 'WIN-JR1TF78ROOI\VIDA'
-    Credential = $credentials
-    TrustServerCertificate = $true
-}
-
-$dbnames = 'basedata','carcom','imagerepository' # Edit if you want any other tables
+$dbnames = 'basedata','carcom' # Edit if you want any other tables
 foreach ($dbname in $dbnames) {
+    if ($dbname -eq 'imagerepository') {
+        # the imagerepository table contains binary data. there's a separate script for extracting the images.
+        continue
+    }
+
     # Get a list of all tables in the given databases
     $db_tables = Invoke-Sqlcmd @parameters -Query @"
         SELECT TABLE_NAME
@@ -30,6 +27,8 @@ foreach ($dbname in $dbnames) {
         $table = $table_row.Item(0)
         $file_path = $($folder + $table + '.csv')
         Write-Output $table
+
+        # If the output is broken just comment out these next lines
         if (Test-Path $file_path -PathType Leaf) {
             continue
         }
@@ -38,8 +37,8 @@ foreach ($dbname in $dbnames) {
             set nocount on;
             SELECT * FROM $($dbname).dbo.$($table)
 "@
+
         $rows | Export-Csv -Encoding UTF8 -UseQuotes AsNeeded -NoTypeInformation -path $file_path
         Write-Output "Written $table"
     }
 }
-
