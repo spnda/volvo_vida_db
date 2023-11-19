@@ -6,35 +6,15 @@ import duckdb
 import pandas
 from read_csv import get_csv, DatabaseFile
 
-# Simple wrapper around a single model row
-class Model:
+# Represents a decoded vehicle from a VIN
+class Vehicle:
     def __init__(self, row: pandas.Series):
         self.vehicle_model = row['fkVehicleModel']
         self.model_year = row['fkModelYear']
         self.partner_group = row['fkPartnerGroup']
-
-        # We reuse Model for comparing the rows from VINDecodeVariant, which does not include a fkBodyStyle
-        # entry.
-        self.body_style = row['fkBodyStyle'] if 'fkBodyStyle' in row and not math.isnan(row['fkBodyStyle']) else None
-
-    def __eq__(self, other):
-        return (isinstance(other, Model) and
-                self.vehicle_model == other.vehicle_model and
-                self.model_year == other.model_year and
-                self.body_style == other.body_style and
-                self.partner_group == other.partner_group)
-
-    def __repr__(self):
-        return f'<Model vehicle_model:{self.vehicle_model} model_year:{self.model_year} body_style:{self.body_style} partner_group:{self.partner_group}>'
-
-# Represents a decoded vehicle from a VIN
-class Vehicle:
-    def __init__(self, model: Model, engine: int, transmission: int):
-        self.vehicle_model = model.vehicle_model
-        self.model_year = model.model_year
-        self.partner_group = model.partner_group
-        self.engine = engine
-        self.transmission = transmission
+        self.body_style = row['fkBodyStyle'] if row['fkBodyStyle'] != -1 else None
+        self.engine = row['fkEngine']
+        self.transmission = row['fkTransmission']
 
     def get_vehicle_profiles(self) -> list[str]:
         """
@@ -55,10 +35,13 @@ class Vehicle:
         """).df()
         return profiles['Id'].tolist()
 
-    @staticmethod
-    def get_value_description(key: str) -> str:
+    def get_value_description(self, key: str) -> str:
+        value = getattr(self, key)
+        if value is None:
+            return ""
+        
         # We use getattr here so the names from read_csv.DatabaseFile need to match up with our member variable names
-        values = duckdb.execute(f"SELECT Description FROM {key} WHERE Id=?", [getattr(vehicle, key)]).df()
+        values = duckdb.execute(f"SELECT Description FROM {key} WHERE Id=?", [int(value)]).df() # somehow the getattr thing works with float64, but not with int64...
         if values.empty:
             raise ValueError(f'Invalid Vehicle: {key} not valid')
         return values['Description'].iloc[0]
@@ -69,20 +52,21 @@ class Vehicle:
         """
         get_csv(DatabaseFile.vehicle_model)
         get_csv(DatabaseFile.model_year)
-        get_csv(DatabaseFile.body_style)
         get_csv(DatabaseFile.partner_group)
+        get_csv(DatabaseFile.body_style)
         get_csv(DatabaseFile.engine)
         get_csv(DatabaseFile.transmission)
 
         print(f'Model: {self.get_value_description("vehicle_model")} [{self.vehicle_model}]')
         print(f'Year: {self.get_value_description("model_year")} [{self.model_year}]')
         print(f'Partner: {self.get_value_description("partner_group")} [{self.partner_group}]')
+        print(f'Body: {self.get_value_description("body_style")} [{self.body_style}]')
         print(f'Engine: {self.get_value_description("engine")} [{self.engine}]')
         print(f'Transmission: {self.get_value_description("transmission")} [{self.transmission}]')
         print(f'VIDA Profiles: {self.get_vehicle_profiles()}')
 
 
-def decode_vin(vin: str) -> Vehicle:
+def decode_vin(vin: str, partner_id: str) -> Vehicle:
     """
     Decodes the VIN to find model information such as model id, model year, partner group, engine and transmission information,
     based on information from the VIDA database.
@@ -93,69 +77,55 @@ def decode_vin(vin: str) -> Vehicle:
         print('VIN is not for a Volvo vehicle')
         return
     
-    # Load the CSV files
-    decode_model = get_csv(DatabaseFile.vin_decode_model).df()
-    decode_variant = get_csv(DatabaseFile.vin_decode_variant).df()
-    #get_csv(DatabaseFile.vin_variant_codes)
+    get_csv(DatabaseFile.vin_decode_model)
+    get_csv(DatabaseFile.vin_decode_variant)
 
-    # Use the VINDecodeModel table to get vehicle model, year, and group information
-    decoded_model = None
-    for _, row in decode_model.iterrows():
-        compare_val = vin[row['VinStartPos']-1:row['VinEndPos']]
-        chassis_no = int(vin[11:])
+    # Use the VINDecodeModel and VINDecodeVariant tables. The tables provide values for a substring operation and a comparison value.
+    # Using that, the chassis number (last 6 digits) and the year code (from VM.Yearcodepos), we can identify the vehicle.
+    # We specifically do not use duckdb.execute here, as converting to a pandas DataFrame currently converts the int64 column to a float column
+    # with NULL values being converted to float NaNs.
+    components = duckdb.sql(f"""
+        SELECT VM.fkVehicleModel, VM.fkModelYear, VM.fkPartnerGroup, VM.fkBodyStyle, VV.fkEngine, VV.fkTransmission
+        FROM vin_decode_model as VM, vin_decode_variant as VV
+        WHERE VM.fkVehicleModel = VV.fkVehicleModel
+        AND VM.fkModelYear = VV.fkModelYear
+        AND (SUBSTRING('{vin}' from VM.VinStartPos for VM.VinEndPos - VM.VinStartPos + 1) = VM.VinCompare)
+        AND (SUBSTRING('{vin}' from VV.VinStartPos for VV.VinEndPos - VV.VinStartPos + 1) = VV.VinCompare)
+        AND (RIGHT('{vin}', 6) BETWEEN VM.ChassisNoFrom AND VM.ChassisNoTo)
+        AND (VM.Yearcode = SUBSTRING('{vin}', VM.Yearcodepos, 1) OR VM.Yearcode IS NULL)
+        AND VM.fkPartnerGroup = VV.fkPartnerGroup
+        AND VM.fkPartnerGroup = {partner_id}
+    """)
 
-        if compare_val == row['VinCompare'] and chassis_no >= int(row['ChassisNoFrom']) and chassis_no <= int(row['ChassisNoTo']) and row['fkPartnerGroup'] == 1002:
-            decoded_model = Model(row)
-            break
-
-    # Use the decoded information to get engine and transmission values
-    # Sometimes there's more than one engine or transmission for one VIN.
-    engines = []
-    transmissions = []
-    for _, row in decode_variant.iterrows():
-        # Filter for already detected model variants
-        if Model(row) != decoded_model:
-            continue
-
-        compare_val = vin[row['VinStartPos']-1:row['VinEndPos']]
-        if compare_val != row['VinCompare']:
-            continue
-
-        # The table only includes either the engine or the transmission.
-        if not math.isnan(row['fkEngine']):
-            engines.append(int(row['fkEngine']))
-        if not math.isnan(row['fkTransmission']):
-            transmissions.append(int(row['fkTransmission']))
-
-    if not engines or not transmissions:
-        raise ValueError('Failed to find a valid engine or transmission')
-    
-    # If there's only one engine and one transmission for this VIN, return that.
-    if len(engines) == 1 and len(transmissions) == 1:
-        return Vehicle(decoded_model, engines[0], transmissions[0])
-
-    # To exclude combinations of engine and transmission we'll now go through the vehicle profiles
-    # and check if any profile exists with both combinations.
     get_csv(DatabaseFile.vehicle_profile)
-    for engine in engines:
-        for transmission in transmissions:
-            combination = duckdb.sql(f"""
-                SELECT * FROM vehicle_profile
-                WHERE fkVehicleModel = {decoded_model.vehicle_model} AND
-                fkModelYear = {decoded_model.model_year} AND
-                fkPartnerGroup = {decoded_model.partner_group} AND
-                fkEngine = {engine} AND
-                fkTransmission = {transmission}
-            """).df()
-            if not combination.empty:
-                return Vehicle(decoded_model, engine, transmission)
 
-    # Not a valid VIN
-    raise ValueError('Found no valid combination of engine and transmission')
+    # For cases where the VIN represents multiple combinations of engines and transmissions we match the table with itself to create
+    # rows with every possible combination of engines and transmissions.
+    combined = duckdb.sql("""
+        SELECT DISTINCT c1.fkVehicleModel, c1.fkModelYear, c1.fkPartnerGroup, c1.fkBodyStyle, c1.fkEngine, c2.fkTransmission FROM components AS c1, components AS c2
+        WHERE c1.fkEngine IS NOT NULL AND c2.fkTransmission IS NOT NULL
+    """)
+
+    # Filter all the engine/transmission combinations for actually valid ones from the VehicleProfile table
+    filtered = duckdb.sql("""
+        SELECT DISTINCT combined.* FROM combined
+        INNER JOIN vehicle_profile vp on vp.fkVehicleModel=combined.fkVehicleModel AND vp.fkModelYear=combined.fkModelYear
+        WHERE combined.fkEngine=vp.fkEngine AND combined.fkTransmission=vp.fkTransmission
+    """).df()
+
+    # Replace possible NaN values with 'None' to avoid having float64 columns, and cast everything to int to not use numpy types
+    filtered = filtered.replace({math.nan: -1}).astype('int64')
+
+    if filtered.empty:
+        raise ValueError('Failed to find valid vehicle profiles for VIN')
+    if len(filtered) > 1:
+        raise ValueError('More than 1 vehicle profile appeared for VIN')
+
+    return Vehicle(filtered.loc[0])
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         print('Usage: vin_decoder.py <VIN>')
     else:
-        vehicle = decode_vin(sys.argv[1])
+        vehicle = decode_vin(sys.argv[1], 1002)
         vehicle.print()

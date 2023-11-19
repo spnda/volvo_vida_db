@@ -2,8 +2,7 @@
 
 This repository contains scripts to extract and work with data from the internal Volvo VIDA database.
 
-Some of the SQL commands in the scripts I converted from [Tigo2000's repository](https://github.com/Tigo2000/Volvo-VIDA/).
-A lot of the information and ideas als come from that repository.
+Some SQL statements are based on procedures found in the VIDA SQL Server database and from scripts in [Tigo2000's repository](https://github.com/Tigo2000/Volvo-VIDA/).
 
 The Python scripts use duckdb and pandas to work with the data.
 
