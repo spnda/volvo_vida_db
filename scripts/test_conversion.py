@@ -1,8 +1,9 @@
-from read_csv import t155
+from read_csv import get_csv, DatabaseFile
 from evaluate_conversion import evaluate_conversion
 
 # Small script to test if evaluate_conversion.py covers all cases in the VIDA db
-for index, row in t155.iterrows():
+df = get_csv(DatabaseFile.t155).df()
+for index, row in df.iterrows():
     expression = row['definition']
     
     # No idea what this is supposed to do: https://stackoverflow.com/questions/77385619/as-a-data-conversion-operator

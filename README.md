@@ -5,7 +5,7 @@ This repository contains scripts to extract and work with data from the internal
 Some of the SQL commands in the scripts I converted from [Tigo2000's repository](https://github.com/Tigo2000/Volvo-VIDA/).
 A lot of the information and ideas als come from that repository.
 
-The Python scripts use pandas and duckdb (pandasql was extremely slow) to work with the data.
+The Python scripts use duckdb and pandas to work with the data.
 
 ### Extracting data from the database
 
@@ -30,4 +30,4 @@ The CSV file will contain all known CAN parameters, their localized name, their 
 ### Processing data conversion functions
 
 The conversion methods found in the outputted CSV file can be applied with the `scripts/evaluate_conversion.py` script.
-It parses the expression with Python's built-in AST and only supports a limited feature set that is sufficient for the expressions found in the VIDA database. 
+It parses the expression into a simple executable AST that supports the feature set required for the expressions from the VIDA database.

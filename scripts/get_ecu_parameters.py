@@ -4,10 +4,22 @@ from typing import Any, Generator
 import pandas as pd
 import duckdb
 
-from read_csv import t100, t101, t102, t141, t144, t150, t155, t160, t161, t162, t191
+from read_csv import get_csv, DatabaseFile
+
+get_csv(DatabaseFile.t100)
+get_csv(DatabaseFile.t101)
+get_csv(DatabaseFile.t102)
+get_csv(DatabaseFile.t141)
+get_csv(DatabaseFile.t144)
+get_csv(DatabaseFile.t150)
+get_csv(DatabaseFile.t155)
+get_csv(DatabaseFile.t160)
+get_csv(DatabaseFile.t161)
+get_csv(DatabaseFile.t162)
+get_csv(DatabaseFile.t191)
 
 def get_ecu_identifiers(profile_identifier: str) -> pd.DataFrame:
-    return duckdb.query(f"""
+    return duckdb.sql(f"""
                  SELECT p.title, e.identifier as EcuIdentifier, e.name as EcuName, ev.identifier as EcuVariantIdentifier, et.identifier as EcuTypeIdentifier
                  FROM t161 p
                  INNER JOIN t160 dev ON dev.fkT161_Profile = p.id
@@ -16,11 +28,11 @@ def get_ecu_identifiers(profile_identifier: str) -> pd.DataFrame:
                  INNER JOIN t102 et on et.id = e.fkT102_EcuType
                  WHERE p.identifier = '{profile_identifier}'
                  ORDER BY e.identifier
-    """).to_df()
+    """).df()
 
 def get_can_parameters(ecu_identifier: str) -> pd.DataFrame:
     # AND NOT td.data = '' AND NOT b.name = 'As usage only'
-    return duckdb.query(f"""
+    return duckdb.sql(f"""
                  SELECT DISTINCT ev.id as EcuID, ev.identifier as EcuIdentifier, b.name as BlockName, b.offset, b.length, bvparent.CompareValue as HexValue, s.definition as Conversion, b.fkT190_Text as TextID, td.data as Text, td2.data as Unit
                  FROM t100 ev
                  INNER JOIN t144 bc ON ev.id = bc.fkT100_EcuVariant 
@@ -33,12 +45,12 @@ def get_can_parameters(ecu_identifier: str) -> pd.DataFrame:
 	             INNER JOIN t191 td2 on td2.fkT190_Text = bv.fkT190_Text_ppeUnit AND td2.fkT193_Language = 19
                  WHERE ev.identifier = '{ecu_identifier}' AND NOT bvparent.CompareValue = ''
                  ORDER BY td.data
-    """).to_df()
+    """).df()
 
 def get_can_parameters_for_profiles(profile_identifiers: list[str]) -> Generator[tuple[str, str, pd.DataFrame], Any, None]:
     for profile in profile_identifiers:
         ecus = get_ecu_identifiers(profile)
-        for idx, row in ecus.iterrows():
+        for _, row in ecus.iterrows():
             can_data = get_can_parameters(row['EcuVariantIdentifier'])
             yield (row['EcuVariantIdentifier'], row['EcuIdentifier'], can_data)
 
