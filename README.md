@@ -22,6 +22,9 @@ to filter the profiles. At the end, the script will print a list of all profiles
 Currently, the script can only work with the top 3 levels, as higher levels only contain certain variations and
 combinations of the already specified data.
 
+Another option is to use `scripts/vin_decoder.py`, which takes a VIN string and decodes it.
+It will then print the relevant vehicle information including a list of all applicable vehicle profiles.
+
 ### Getting CAN parameters
 
 Using `scripts/get_ecu_parameters.py` you can get a CSV file for every ECU in the car as specified by the vehicle profile(s).

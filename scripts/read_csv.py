@@ -4,6 +4,16 @@ import enum
 loaded_csv_dictionary = {}
 
 class DatabaseFile(str, enum.Enum):
+    body_style = 'basedata/BodyStyle'
+    engine = 'basedata/Engine'
+    model_year = 'basedata/ModelYear'
+    partner_group = 'basedata/PartnerGroup'
+    transmission = 'basedata/Transmission'
+    vehicle_model = 'basedata/VehicleModel'
+    vehicle_profile = 'basedata/VehicleProfile'
+    vin_decode_model = 'basedata/VINDecodeModel'
+    vin_decode_variant = 'basedata/VINDecodeVariant'
+    vin_variant_codes = 'basedata/VINVariantCodes'
     t100 = 'carcom/T100_EcuVariant'
     t101 = 'carcom/T101_Ecu'
     t102 = 'carcom/T102_EcuType'

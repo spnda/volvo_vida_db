@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 from typing import Any, Generator
+import sys
 import pandas as pd
 import duckdb
 
 from read_csv import get_csv, DatabaseFile
+from vin_decoder import decode_vin
 
 get_csv(DatabaseFile.t100)
 get_csv(DatabaseFile.t101)
@@ -55,9 +57,17 @@ def get_can_parameters_for_profiles(profile_identifiers: list[str]) -> Generator
             yield (row['EcuVariantIdentifier'], row['EcuIdentifier'], can_data)
 
 if __name__ == '__main__':
-    # All the profile identifiers as determined with find_vehicle_profiles.py
-    # Change this to whatever that script outputs
-    profiles = ['0b00c8af8020c059', '0b00c8af823216ee', '0b00c8af8247622b']
-    for params in get_can_parameters_for_profiles(profiles):
-        params[2].to_csv(f'ecu/{params[1]}_{params[0]}.csv', sep=',', encoding='utf-8', index=False)
-        print(f'Written CAN data to CSV: {params[1]}_{params[0]}')
+    # You can figure out the profiles manually through find_vehicle_profiles or using the VIN with vin_decoder.py
+    profiles = []
+
+    # If the profiles are empty, we expect a VIN to be passed for decoding.
+    if len(profiles) == 0 and len(sys.argv) == 1:
+        print("Usage: get_ecu_parameters.py <VIN>")
+    else:
+        if len(profiles) == 0:
+            vehicle = decode_vin(sys.argv[1])
+            profiles = vehicle.get_vehicle_profiles()
+        
+        for params in get_can_parameters_for_profiles(profiles):
+            params[2].to_csv(f'ecu/{params[1]}_{params[0]}.csv', sep=',', encoding='utf-8', index=False)
+            print(f'Written CAN data to CSV: {params[1]}_{params[0]}')

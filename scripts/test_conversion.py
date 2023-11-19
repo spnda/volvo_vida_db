@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from read_csv import get_csv, DatabaseFile
 from evaluate_conversion import evaluate_conversion
 
