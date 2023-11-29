@@ -16,10 +16,7 @@ foreach ($dbname in $dbnames) {
 
     # Make sure the target directory exists 
     $folder = 'csv/' + $dbname + '/'
-    if (!(Test-Path -PathType container $folder))
-    {
-        New-Item -ItemType Directory -Path $folder | Out-Null
-    }
+    New-Item -ItemType Directory -Path $folder -ErrorAction SilentlyContinue
 
     # Write the contents of each table as CSVs
     # TODO: This script takes VERY long to execute. Use threading?

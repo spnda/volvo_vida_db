@@ -9,7 +9,7 @@ The Python scripts use duckdb and pandas to work with the data.
 ### Extracting data from the database
 
 Depending on wether PowerShell 7 and the SQLServer module are installed, you can either use `generate_csv.ps1` or `generate_csv.bat`.
-The PowerShell script takes significantly longer than the Batch script does to generate, but is capable of outputting completely correct files.
+The PowerShell scripts can take longer than the Batch script does to generate, but is capable of outputting completely correct files.
 The PowerShell script uses the `UseQuotes` option on `Export-Csv` which was introduced in PowerShell 7. On Windows 7 Professional the last working version of PowerShell 7 is 7.2.9.
 The SQL credentials are already written into the scripts and won't need to be changed.
 
@@ -33,3 +33,11 @@ The CSV file will contain all known CAN parameters, their localized name, their 
 
 The conversion methods found in the outputted CSV file can be applied with the `scripts/evaluate_conversion.py` script.
 It parses the expression into a simple executable AST that supports the feature set required for the expressions from the VIDA database.
+
+### Extracting scripts
+
+The VIDA database contains XML-based scripts that can read and write data from and to the car.
+These use the CAN protocol and are used to perform certain actions, but can also be used to figure out how the protocol works.
+Reading these scripts can allow us to figure out how the CAN-based protocol works and how we can make use of it. 
+
+The `sql/extract_scripts.ps1` can be used to extract all script metadata into CSV files and the actual scripts into decompressed XML files.

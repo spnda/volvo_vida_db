@@ -26,6 +26,12 @@ class DatabaseFile(str, enum.Enum):
     t162 = 'carcom/T162_ProfileValue'
     t163 = 'carcom/T163_ProfileValueType'
     t191 = 'carcom/T191_TextData'
+    script = 'DiagSwdlRepository/Script'
+    script_car_function = 'DiagSwdlRepository/ScriptCarFunction'
+    script_content = 'DiagSwdlRepository/ScriptContent'
+    script_profile_map = 'DiagSwdlRepository/ScriptProfileMap'
+    script_type = 'DiagSwdlRepository/ScriptType'
+    script_variant = 'DiagSwdlRepository/ScriptVariant'
 
 def get_csv(csv_file: DatabaseFile) -> duckdb.DuckDBPyRelation:
     """
@@ -34,6 +40,6 @@ def get_csv(csv_file: DatabaseFile) -> duckdb.DuckDBPyRelation:
     if csv_file in loaded_csv_dictionary:
         return loaded_csv_dictionary[csv_file]
     else:
-        loaded_csv_dictionary[csv_file] = duckdb.read_csv(f'csv/{csv_file}.csv', encoding='utf-8')
+        loaded_csv_dictionary[csv_file] = duckdb.read_csv(f'csv/{csv_file}.csv', header=True, encoding='utf-8')
         duckdb.register(csv_file.name, loaded_csv_dictionary[csv_file])
         return loaded_csv_dictionary[csv_file]
