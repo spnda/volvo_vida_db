@@ -8,19 +8,12 @@ import duckdb
 from read_csv import get_csv, DatabaseFile
 from vin_decoder import decode_vin
 
-get_csv(DatabaseFile.t100)
-get_csv(DatabaseFile.t101)
-get_csv(DatabaseFile.t102)
-get_csv(DatabaseFile.t141)
-get_csv(DatabaseFile.t144)
-get_csv(DatabaseFile.t150)
-get_csv(DatabaseFile.t155)
-get_csv(DatabaseFile.t160)
-get_csv(DatabaseFile.t161)
-get_csv(DatabaseFile.t162)
-get_csv(DatabaseFile.t191)
-
 def get_ecu_identifiers(profile_identifier: str) -> pd.DataFrame:
+    get_csv(DatabaseFile.t160)
+    get_csv(DatabaseFile.t161)
+    get_csv(DatabaseFile.t100)
+    get_csv(DatabaseFile.t101)
+    get_csv(DatabaseFile.t102)
     return duckdb.sql(f"""
                  SELECT p.title, e.identifier as EcuIdentifier, e.name as EcuName, ev.identifier as EcuVariantIdentifier, et.identifier as EcuTypeIdentifier
                  FROM t161 p
@@ -33,6 +26,12 @@ def get_ecu_identifiers(profile_identifier: str) -> pd.DataFrame:
     """).df()
 
 def get_can_parameters(ecu_identifier: str) -> pd.DataFrame:
+    get_csv(DatabaseFile.t100)
+    get_csv(DatabaseFile.t144)
+    get_csv(DatabaseFile.t141)
+    get_csv(DatabaseFile.t150)
+    get_csv(DatabaseFile.t155)
+    get_csv(DatabaseFile.t191)
     # AND NOT td.data = '' AND NOT b.name = 'As usage only'
     return duckdb.sql(f"""
                  SELECT DISTINCT ev.id as EcuID, ev.identifier as EcuIdentifier, b.name as BlockName, b.offset, b.length, bvparent.CompareValue as HexValue, s.definition as Conversion, b.fkT190_Text as TextID, td.data as Text, td2.data as Unit
@@ -65,9 +64,9 @@ if __name__ == '__main__':
         print("Usage: get_ecu_parameters.py <VIN>")
     else:
         if len(profiles) == 0:
-            vehicle = decode_vin(sys.argv[1])
+            vehicle = decode_vin(sys.argv[1], 1002)
             profiles = vehicle.get_vehicle_profiles()
         
         for params in get_can_parameters_for_profiles(profiles):
+            print(f'Writing CAN data for ECU {params[0]} of type {params[1]} to CSV...')
             params[2].to_csv(f'ecu/{params[1]}_{params[0]}.csv', sep=',', encoding='utf-8', index=False)
-            print(f'Written CAN data to CSV: {params[1]}_{params[0]}')
