@@ -4,11 +4,14 @@ import math
 import sys
 import duckdb
 import pandas
+import pickle
+import os
 from read_csv import get_csv, DatabaseFile
 
 # Represents a decoded vehicle from a VIN
 class Vehicle:
-    def __init__(self, row: pandas.Series):
+    def __init__(self, vin: str, row: pandas.Series):
+        self.vin = vin
         self.vehicle_model = row['fkVehicleModel']
         self.model_year = row['fkModelYear']
         self.partner_group = row['fkPartnerGroup']
@@ -66,7 +69,7 @@ class Vehicle:
         print(f'VIDA Profiles: {self.get_vehicle_profiles()}')
 
 
-def decode_vin(vin: str, partner_id: str) -> Vehicle:
+def decode_vin(vin: str, partner_id: str, cached: bool = True) -> Vehicle:
     """
     Decodes the VIN to find model information such as model id, model year, partner group, engine and transmission information,
     based on information from the VIDA database.
@@ -76,6 +79,11 @@ def decode_vin(vin: str, partner_id: str) -> Vehicle:
     if vin[:3] != 'YV1':
         print('VIN is not for a Volvo vehicle')
         return
+    
+    if cached and os.path.exists(f"cache/{vin}.p"):
+        # This import is to avoid namespace problems, making the class always be vin_decoder.Vehicle instead of __main__.Vehicle
+        from vin_decoder import Vehicle
+        return pickle.load(open(f"cache/{vin}.p", "rb"))
     
     get_csv(DatabaseFile.vin_decode_model)
     get_csv(DatabaseFile.vin_decode_variant)
@@ -121,7 +129,10 @@ def decode_vin(vin: str, partner_id: str) -> Vehicle:
     if len(filtered) > 1:
         raise ValueError('More than 1 vehicle profile appeared for VIN')
 
-    return Vehicle(filtered.loc[0])
+    from vin_decoder import Vehicle
+    vehicle = Vehicle(vin, filtered.loc[0])
+    pickle.dump(vehicle, open(f"cache/{vin}.p", "wb"))
+    return vehicle
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
