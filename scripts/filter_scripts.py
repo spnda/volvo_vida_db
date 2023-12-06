@@ -49,7 +49,7 @@ if __name__ == '__main__':
         print("Usage: filter_scripts.py <VIN>")
     else:
         if len(profiles) == 0:
-            vehicle = decode_vin(sys.argv[1], 1002)
+            vehicle = decode_vin(sys.argv[1])
             profiles = vehicle.get_vehicle_profiles()
         
         scripts = get_filtered_scripts(profiles)

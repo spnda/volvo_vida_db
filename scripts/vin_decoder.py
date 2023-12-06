@@ -6,7 +6,16 @@ import duckdb
 import pandas
 import pickle
 import os
+from enum import Enum
 from read_csv import get_csv, DatabaseFile
+
+# These values are copied from the SQL table basedata/PartnerGroup
+class PartnerGroup(Enum):
+    AME = 1001
+    EUR = 1002
+    INT = 1003
+    NOR = 1004
+    CHI = 1005
 
 # Represents a decoded vehicle from a VIN
 class Vehicle:
@@ -68,8 +77,8 @@ class Vehicle:
         print(f'Transmission: {self.get_value_description("transmission")} [{self.transmission}]')
         print(f'VIDA Profiles: {self.get_vehicle_profiles()}')
 
-
-def decode_vin(vin: str, partner_id: str, cached: bool = True) -> Vehicle:
+# TODO: Don't default to PartnerGroup.EUR but have some detection or add it as a required input for all callers.
+def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bool = True) -> Vehicle:
     """
     Decodes the VIN to find model information such as model id, model year, partner group, engine and transmission information,
     based on information from the VIDA database.
@@ -102,7 +111,7 @@ def decode_vin(vin: str, partner_id: str, cached: bool = True) -> Vehicle:
         AND (RIGHT('{vin}', 6) BETWEEN VM.ChassisNoFrom AND VM.ChassisNoTo)
         AND (VM.Yearcode = SUBSTRING('{vin}', VM.Yearcodepos, 1) OR VM.Yearcode IS NULL)
         AND VM.fkPartnerGroup = VV.fkPartnerGroup
-        AND VM.fkPartnerGroup = {partner_id}
+        AND VM.fkPartnerGroup = {partner_id.value}
     """)
 
     get_csv(DatabaseFile.vehicle_profile)
@@ -138,5 +147,5 @@ if __name__ == '__main__':
     if len(sys.argv) != 2:
         print('Usage: vin_decoder.py <VIN>')
     else:
-        vehicle = decode_vin(sys.argv[1], 1002)
+        vehicle = decode_vin(sys.argv[1])
         vehicle.print()

@@ -64,7 +64,7 @@ if __name__ == '__main__':
         print("Usage: get_ecu_parameters.py <VIN>")
     else:
         if len(profiles) == 0:
-            vehicle = decode_vin(sys.argv[1], 1002)
+            vehicle = decode_vin(sys.argv[1])
             profiles = vehicle.get_vehicle_profiles()
         
         for params in get_can_parameters_for_profiles(profiles):
