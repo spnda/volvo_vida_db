@@ -1,7 +1,9 @@
 import duckdb
 import enum
+import os
 
 loaded_csv_dictionary = {}
+root_directory = os.getcwd()
 
 class DatabaseFile(str, enum.Enum):
     body_style = 'basedata/BodyStyle'
@@ -17,7 +19,10 @@ class DatabaseFile(str, enum.Enum):
     t100 = 'carcom/T100_EcuVariant'
     t101 = 'carcom/T101_Ecu'
     t102 = 'carcom/T102_EcuType'
+    t120 = 'carcom/T120_Config_EcuVariant'
+    t121 = 'carcom/T121_Config'
     t141 = 'carcom/T141_Block'
+    t142 = 'carcom/T142_BlockType'
     t144 = 'carcom/T144_BlockChild'
     t150 = 'carcom/T150_BlockValue'
     t155 = 'carcom/T155_Scaling'
@@ -40,6 +45,16 @@ def get_csv(csv_file: DatabaseFile) -> duckdb.DuckDBPyRelation:
     if csv_file in loaded_csv_dictionary:
         return loaded_csv_dictionary[csv_file]
     else:
-        loaded_csv_dictionary[csv_file] = duckdb.read_csv(f'csv/{csv_file}.csv', header=True, encoding='utf-8')
+        loaded_csv_dictionary[csv_file] = duckdb.read_csv(f'{root_directory}/csv/{csv_file}.csv', header=True, encoding='utf-8')
         duckdb.register(csv_file.name, loaded_csv_dictionary[csv_file])
         return loaded_csv_dictionary[csv_file]
+    
+def get_csvs(*csv_files: DatabaseFile):
+    for file in csv_files:
+        get_csv(file)
+
+def set_cwd(path: str):
+    """
+    Change the directory in which to look for the VIDA CSV files
+    """
+    root_directory = path
