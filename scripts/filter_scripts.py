@@ -1,7 +1,7 @@
 import sys
 import duckdb
 import pandas as pd
-from read_csv import get_csv, DatabaseFile
+from read_csv import get_csv, DatabaseFile, root_directory
 from vin_decoder import decode_vin, Vehicle
 
 def get_filtered_scripts_for_profile(profile: str) -> list[str]:
@@ -54,4 +54,4 @@ if __name__ == '__main__':
         
         scripts = get_filtered_scripts(profiles)
         scripts = get_script_descriptions(scripts)
-        duckdb.write_csv(scripts, "ecu/scripts.csv")
+        duckdb.write_csv(scripts, f"{root_directory}/ecu/scripts.csv")

@@ -7,7 +7,7 @@ import pandas
 import pickle
 import os
 from enum import Enum
-from read_csv import get_csv, DatabaseFile
+from read_csv import get_csv, get_csvs, DatabaseFile, root_directory
 
 # These values are copied from the SQL table basedata/PartnerGroup
 class PartnerGroup(Enum):
@@ -62,12 +62,7 @@ class Vehicle:
         """
         Pretty-prints the information from a vehicle.
         """
-        get_csv(DatabaseFile.vehicle_model)
-        get_csv(DatabaseFile.model_year)
-        get_csv(DatabaseFile.partner_group)
-        get_csv(DatabaseFile.body_style)
-        get_csv(DatabaseFile.engine)
-        get_csv(DatabaseFile.transmission)
+        get_csvs(DatabaseFile.vehicle_model, DatabaseFile.model_year, DatabaseFile.partner_group, DatabaseFile.body_style, DatabaseFile.engine, DatabaseFile.transmission)
 
         print(f'Model: {self.get_value_description("vehicle_model")} [{self.vehicle_model}]')
         print(f'Year: {self.get_value_description("model_year")} [{self.model_year}]')
@@ -92,7 +87,7 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
     if cached and os.path.exists(f"cache/{vin}.p"):
         # This import is to avoid namespace problems, making the class always be vin_decoder.Vehicle instead of __main__.Vehicle
         from vin_decoder import Vehicle
-        return pickle.load(open(f"cache/{vin}.p", "rb"))
+        return pickle.load(open(f"{root_directory}/cache/{vin}.p", "rb"))
     
     get_csv(DatabaseFile.vin_decode_model)
     get_csv(DatabaseFile.vin_decode_variant)
@@ -140,7 +135,10 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
 
     from vin_decoder import Vehicle
     vehicle = Vehicle(vin, filtered.loc[0])
-    pickle.dump(vehicle, open(f"cache/{vin}.p", "wb"))
+    if cached:
+        if not os.path.isdir("cache"):
+            os.makedirs("cache")
+        pickle.dump(vehicle, open(f"{root_directory}/cache/{vin}.p", "wb"))
     return vehicle
 
 if __name__ == '__main__':

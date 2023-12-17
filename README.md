@@ -15,19 +15,19 @@ The SQL credentials are already written into the scripts and won't need to be ch
 
 ### Getting vehicle profiles
 
-The `scripts/find_vehicle_profiles.py` script can assist filtering the T161_Profile table to find all profiles
-for a specific vehicle. The script will ask things such as the vehicle model, year, engine, transmission, etc.
-to filter the profiles. At the end, the script will print a list of all profiles that match the criteria.
-Currently, the script can only work with the top 3 levels, as higher levels only contain certain variations and
-combinations of the already specified data.
-
-Another option is to use `scripts/vin_decoder.py`, which takes a VIN string and decodes it.
-It will then print the relevant vehicle information including a list of all applicable vehicle profiles.
+Using `scripts/vin_decoder.py` you can get a list of VIDA vehicle profiles, as well as basic information about
+the car such as model, year, engine, ...
+The vehicle profiles are linked to various information in the database, such as a list of ECUs present in the vehicle.
+A single vehicle is made up of multiple profiles for every combination of model, model year, engine, transmission, ...
+The profile that represents a generic V50 for example will only link to data that is present in *every* V50.
+Other profiles will then be more specific about things such as the engine, which will then link to the ECUs which are only present for that engine.
+These profiles will become very important for the rest of the scripts.
 
 ### Getting CAN parameters
 
-Using `scripts/get_ecu_parameters.py` you can get a CSV file for every ECU in the car as specified by the vehicle profile(s).
-The CSV file will contain all known CAN parameters, their localized name, their byte offset, and a conversion function.
+Using `scripts/write_ecu_data.py` you can get a CSV file for each ECU for the given vehicle VIN.
+This will write a configs.csv file which contains information about how to interact with each ECU and through which physical bus.
+It will also write a CSV for each ECU containing information how to ask for specific data and how to interpret the bits.
 
 ### Processing data conversion functions
 
