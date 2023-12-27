@@ -24,7 +24,7 @@ class Vehicle:
         self.vehicle_model = row['fkVehicleModel']
         self.model_year = row['fkModelYear']
         self.partner_group = row['fkPartnerGroup']
-        self.body_style = row['fkBodyStyle'] if row['fkBodyStyle'] != -1 else None
+        self.body_style = row['fkBodyStyle'] if row['fkBodyStyle'] != -1 else 0
         self.engine = row['fkEngine']
         self.transmission = row['fkTransmission']
 
@@ -40,7 +40,7 @@ class Vehicle:
             (fkPartnerGroup IS NULL OR fkPartnerGroup={self.partner_group}) AND
             (fkEngine IS NULL OR fkEngine={self.engine}) AND
             (fkTransmission IS NULL OR fkTransmission={self.transmission}) AND
-            fkBodyStyle IS NULL AND
+            (fkBodyStyle IS NULL OR fkBodyStyle={self.body_style}) AND
             fkSteering IS NULL AND
             fkNodeECU IS NULL AND
             fkSpecialVehicle IS NULL
@@ -49,7 +49,7 @@ class Vehicle:
 
     def get_value_description(self, key: str) -> str:
         value = getattr(self, key)
-        if value is None:
+        if value is None or value == 0:
             return ""
         
         # We use getattr here so the names from read_csv.DatabaseFile need to match up with our member variable names
@@ -112,29 +112,32 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
     get_csv(DatabaseFile.vehicle_profile)
 
     # For cases where the VIN represents multiple combinations of engines and transmissions we match the table with itself to create
-    # rows with every possible combination of engines and transmissions.
+    # rows with every possible combination of engines and transmissions. However, we also want to allow VINs that only represent a single engine.
     combined = duckdb.sql("""
         SELECT DISTINCT c1.fkVehicleModel, c1.fkModelYear, c1.fkPartnerGroup, c1.fkBodyStyle, c1.fkEngine, c2.fkTransmission FROM components AS c1, components AS c2
-        WHERE c1.fkEngine IS NOT NULL AND c2.fkTransmission IS NOT NULL
-    """)
-
-    # Filter all the engine/transmission combinations for actually valid ones from the VehicleProfile table
-    filtered = duckdb.sql("""
-        SELECT DISTINCT combined.* FROM combined
-        INNER JOIN vehicle_profile vp on vp.fkVehicleModel=combined.fkVehicleModel AND vp.fkModelYear=combined.fkModelYear
-        WHERE combined.fkEngine=vp.fkEngine AND combined.fkTransmission=vp.fkTransmission
+        WHERE (c1.fkEngine IS NOT NULL AND c2.fkTransmission IS NOT NULL) OR c1.fkEngine IS NOT NULL
     """).df()
 
-    # Replace possible NaN values with 'None' to avoid having float64 columns, and cast everything to int to not use numpy types
-    filtered = filtered.replace({math.nan: -1}).astype('int64')
+    # Filter all the engine/transmission combinations for actually valid ones from the VehicleProfile table if more than one exists
+    if len(combined) > 1:
+        filtered = duckdb.sql("""
+            SELECT DISTINCT combined.* FROM combined
+            INNER JOIN vehicle_profile vp on vp.fkVehicleModel=combined.fkVehicleModel AND vp.fkModelYear=combined.fkModelYear
+            WHERE combined.fkEngine=vp.fkEngine AND combined.fkTransmission=vp.fkTransmission
+        """).df()
+        combined = filtered
 
-    if filtered.empty:
+    # Replace possible NaN values with 'None' to avoid having float64 columns, and cast everything to int to not use numpy types
+    combined = combined.replace({math.nan: 0}).astype('int64')
+    print(combined)
+
+    if combined.empty:
         raise ValueError('Failed to find valid vehicle profiles for VIN')
-    if len(filtered) > 1:
+    if len(combined) > 1:
         raise ValueError('More than 1 vehicle profile appeared for VIN')
 
     from vin_decoder import Vehicle
-    vehicle = Vehicle(vin, filtered.loc[0])
+    vehicle = Vehicle(vin, combined.loc[0])
     if cached:
         if not os.path.isdir("cache"):
             os.makedirs("cache")
@@ -145,5 +148,8 @@ if __name__ == '__main__':
     if len(sys.argv) != 2:
         print('Usage: vin_decoder.py <VIN>')
     else:
-        vehicle = decode_vin(sys.argv[1])
-        vehicle.print()
+        try:
+            vehicle = decode_vin(sys.argv[1], cached=False)
+            vehicle.print()
+        except ValueError as e:
+            print("Failed to decode VIN: " + str(e))

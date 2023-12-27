@@ -1,6 +1,16 @@
-sql/__pycache__/
+scripts/__pycache__/
+*.pyc
 ecu/
 csv/
 images/
 extracted_scripts/
 cache/
+
+# Python venv
+pyvenv.cfg
+bin/
+lib/
+include/
+
+# OS stuff
+.DS_Store

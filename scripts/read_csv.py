@@ -48,7 +48,7 @@ def get_csv(csv_file: DatabaseFile) -> duckdb.DuckDBPyRelation:
     if csv_file in loaded_csv_dictionary:
         return loaded_csv_dictionary[csv_file]
     else:
-        loaded_csv_dictionary[csv_file] = duckdb.read_csv(f'{root_directory}/csv/{csv_file}.csv', header=True, encoding='utf-8')
+        loaded_csv_dictionary[csv_file] = duckdb.read_csv(f'{root_directory}/csv/{csv_file.value}.csv', header=True, encoding='utf-8')
         duckdb.register(csv_file.name, loaded_csv_dictionary[csv_file])
         return loaded_csv_dictionary[csv_file]
     

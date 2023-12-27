@@ -2,6 +2,7 @@
 
 from typing import Any, Generator
 import sys
+import os
 import pandas as pd
 
 from read_csv import get_csvs, DatabaseFile, root_directory
@@ -33,6 +34,8 @@ if __name__ == '__main__':
             for _, row in ecu_ids.iterrows():
                 config = get_ecu_config(row['EcuVariantIdentifier']).df()
                 ecu_configs.append(config)
+
+        os.mkdir(f'{root_directory}/ecu')
 
         configs = pd.concat(ecu_configs, axis=0)
         print('Writing CAN config for ECUs...')
