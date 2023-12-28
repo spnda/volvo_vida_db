@@ -2,7 +2,7 @@
 
 import operator as op
 import re
-from math import log
+from math import log, log10
 import sys
 
 operators = {
@@ -12,10 +12,16 @@ operators = {
     '/': op.truediv,
     '^': op.pow,
     '&': op.and_,
+    '|': op.or_,
 }
+
+def conv_int(x: float | int) -> int:
+    return int(round(x))
 
 functions = {
     'ln': log,
+    'log': log10,
+    'int': conv_int,
 }
 
 class Node(): pass
@@ -63,13 +69,13 @@ def get_op_precedence(op: str) -> int:
         return 1
     elif op == '^':
         return 2
-    elif op == '&':
+    elif op == '&' or op == '|':
         return 3
     raise ValueError
 
 def is_number(expr: str) -> bool:
     # check if float/int, hex, or binary.
-    return bool(re.fullmatch(r'^[+-]?([0-9]*[.])?[0-9]+$', expr)) or bool(re.fullmatch(r'(0x)[0-9A-Fa-f]+', expr)) or bool(re.fullmatch(r'(0b)[0-1]+', expr))
+    return bool(re.fullmatch(r'^[+-]?([0-9]*[.])?[0-9]+(E[+-]?[0-9]+)?$', expr)) or bool(re.fullmatch(r'(0x)[0-9A-Fa-f]+', expr)) or bool(re.fullmatch(r'(0b)[0-1]+', expr))
 
 def parse_number(expr: str) -> int | float:
     if len(expr) <= 2:
@@ -83,6 +89,33 @@ def parse_number(expr: str) -> int | float:
     else:
         return int(expr)
 
+def is_func_or_bracketted(expr: str) -> bool:
+    """
+    This function simply checks if the whole expression is either fully braced or is just a single function call.
+    """
+    if '(' not in expr:
+        return False
+    
+    bracket_idx = expr.index('(')
+    if bracket_idx != 0 and not expr[:bracket_idx].isalpha():
+        # If the brackets don't start at the beginning and there is no function name before the brackets, return False.
+        return False
+    
+    i = bracket_idx
+    brackets = 0
+    while i < len(expr):
+        if expr[i] == '(':
+            brackets += 1
+        elif expr[i] == ')':
+            brackets -= 1
+            
+        i += 1
+        
+        if brackets == 0 and i != len(expr):
+            # The initial brackets have been closed and we're not at the end.
+            return False
+    return True
+
 def parse_conversion(expr: str) -> Node:
     # Remove unnecessary whitespaces
     expr = expr.strip()
@@ -93,11 +126,12 @@ def parse_conversion(expr: str) -> Node:
     if is_number(expr):
         return Value(value=parse_number(expr))
     
-    if '(' in expr:
+    if is_func_or_bracketted(expr):
         bracket_idx = expr.index('(')
-        if expr[:bracket_idx].isalpha() and expr.count('(') == expr.count(')') and expr[-1] == ')':
-            # Function call
+        if expr[:bracket_idx].isalpha():
             return Function(arg=parse_conversion(expr[bracket_idx+1:-1]), func=expr[:bracket_idx])
+        else:
+            return parse_conversion(expr[1:-1])
     
     # Find the lowest operator in the expression and look for the first one.
     i = 0
@@ -105,7 +139,7 @@ def parse_conversion(expr: str) -> Node:
     while i < len(expr):
         ch = expr[i]
         if expr[i] == '(':
-            # Skip to the end of the brackets
+            # Skip over these brackets
             brackets = 0
             while i < len(expr):
                 if expr[i] == '(':
@@ -117,17 +151,18 @@ def parse_conversion(expr: str) -> Node:
                     break
             
             if i == len(expr):
-                if lowest_operator is None:
-                    # We've reached the end of the expression and the brackets seem to cover the entire expression. Remove them.
-                    return parse_conversion(expr[1:-1])
-                else:
-                    break
+                # The brackets end with the expression, directly quit the loop
+                break
             ch = expr[i]
         
         if ch in operators:
-            if (ch == '-' and i == 0) or (ch == '-' and (expr[i-1] in operators or expr[i-1] == 'E')):
-                # This is a unary minus operator either at the beginning of an expression, right after another operator,
-                # or within exponential notation. We'll just skip it so that it will process as a single expression.
+            if (ch == '-' and i == 0):
+                # This is a unary minus right at the start of the expression. We'll just treat it as a subtraction from
+                # 0 for the rest of the expression.
+                return BinaryOp(left=Value(0), op='-', right=parse_conversion(expr[1:]))
+            elif (ch == '-' and (expr[i-1] in operators or expr[i-1] == 'E')):
+                # This is a unary minus operator either right after another operator or within exponential notation.
+                # We'll just skip it so that it will process as a single expression.
                 pass
             elif lowest_operator is None or get_op_precedence(ch) < get_op_precedence(lowest_operator[0]):
                 lowest_operator = (ch, i)
