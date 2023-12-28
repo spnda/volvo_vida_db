@@ -1,6 +1,6 @@
 # volvo_vida_db
 
-This repository contains scripts to extract and work with data from the internal Volvo VIDA database.
+This repository contains scripts to extract and work with data from the internal Volvo VIDA 2014D database.
 
 Some SQL statements are based on procedures found in the VIDA SQL Server database and from scripts in [Tigo2000's repository](https://github.com/Tigo2000/Volvo-VIDA/).
 

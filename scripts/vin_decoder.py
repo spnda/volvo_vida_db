@@ -72,6 +72,13 @@ class Vehicle:
         print(f'Transmission: {self.get_value_description("transmission")} [{self.transmission}]')
         print(f'VIDA Profiles: {self.get_vehicle_profiles()}')
 
+def validate_vin(vin: str) -> bool:
+    vin = vin.strip()
+    if len(vin) != 17:
+        return False
+    chassis_no = vin[11:]
+    return chassis_no.isdigit()
+
 # TODO: Don't default to PartnerGroup.EUR but have some detection or add it as a required input for all callers.
 def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bool = True) -> Vehicle:
     """
@@ -80,9 +87,11 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
     There's more information inside the VIN number, which is not decoded here. You can find more information here:
     https://en.wikibooks.org/wiki/Vehicle_Identification_Numbers_(VIN_codes)/Volvo/VIN_Codes#Position_1_-_3:_World_Manufacturer_Identifier
     """
+    if not validate_vin(vin):
+        raise ValueError('VIN string is not a valid VIN')
+    
     if vin[:3] != 'YV1':
-        print('VIN is not for a Volvo vehicle')
-        return
+        raise ValueError('VIN is not for a Volvo vehicle')
     
     if cached and os.path.exists(f"cache/{vin}.p"):
         # This import is to avoid namespace problems, making the class always be vin_decoder.Vehicle instead of __main__.Vehicle
@@ -109,33 +118,35 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
         AND VM.fkPartnerGroup = {partner_id.value}
     """)
 
-    get_csv(DatabaseFile.vehicle_profile)
-
     # For cases where the VIN represents multiple combinations of engines and transmissions we match the table with itself to create
-    # rows with every possible combination of engines and transmissions. However, we also want to allow VINs that only represent a single engine.
+    # rows with every possible combination of engines and transmissions.
+    # However, we also want to allow VINs where the transmission is not determinable or where no transmission is specified in the database.
     combined = duckdb.sql("""
         SELECT DISTINCT c1.fkVehicleModel, c1.fkModelYear, c1.fkPartnerGroup, c1.fkBodyStyle, c1.fkEngine, c2.fkTransmission FROM components AS c1, components AS c2
-        WHERE (c1.fkEngine IS NOT NULL AND c2.fkTransmission IS NOT NULL) OR c1.fkEngine IS NOT NULL
+        WHERE (c1.fkEngine IS NOT NULL AND c2.fkTransmission IS NOT NULL) OR (c1.fkEngine IS NOT NULL AND c2.fkTransmission IS NULL AND NOT EXISTS (
+            SELECT 1 FROM components WHERE fkTransmission IS NOT NULL
+        ))
     """).df()
 
     # Filter all the engine/transmission combinations for actually valid ones from the VehicleProfile table if more than one exists
     if len(combined) > 1:
+        get_csv(DatabaseFile.vehicle_profile)
         filtered = duckdb.sql("""
             SELECT DISTINCT combined.* FROM combined
             INNER JOIN vehicle_profile vp on vp.fkVehicleModel=combined.fkVehicleModel AND vp.fkModelYear=combined.fkModelYear
-            WHERE combined.fkEngine=vp.fkEngine AND combined.fkTransmission=vp.fkTransmission
+            WHERE (combined.fkEngine=vp.fkEngine AND combined.fkTransmission=vp.fkTransmission) OR combined.fkTransmission IS NULL
         """).df()
         combined = filtered
 
     # Replace possible NaN values with 'None' to avoid having float64 columns, and cast everything to int to not use numpy types
     combined = combined.replace({math.nan: 0}).astype('int64')
-    print(combined)
 
     if combined.empty:
-        raise ValueError('Failed to find valid vehicle profiles for VIN')
-    if len(combined) > 1:
-        raise ValueError('More than 1 vehicle profile appeared for VIN')
-
+        raise ValueError('Failed to find valid vehicles for VIN')
+    if len(combined['fkVehicleModel'].unique()) > 1:
+        # Only the vehicle model has to be unique. All other values can technically be unspecified by the VIN.
+        raise ValueError('More than 1 vehicle appeared for VIN')
+    
     from vin_decoder import Vehicle
     vehicle = Vehicle(vin, combined.loc[0])
     if cached:
