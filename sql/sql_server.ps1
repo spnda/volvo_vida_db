@@ -3,8 +3,11 @@
 $password = 'GunnarS3g3' | ConvertTo-SecureString -AsPlainText -Force
 $credentials = New-Object System.Management.Automation.PSCredential -ArgumentList 'sa', $password
 
+$computerName = $env:COMPUTERNAME
+$serverInstance = "$computerName\VIDA"  # Assuming the instance name is always "VIDA"
+
 $parameters = @{
-    ServerInstance = 'WIN-JEPMLG6VL2S\VIDA'
+    ServerInstance = $serverInstance
     Credential = $credentials
     TrustServerCertificate = $true
 }

@@ -1,46 +1,70 @@
 . $PSScriptRoot\sql_server.ps1
 
-$dbnames = 'basedata','carcom' # Edit if you want any other tables
+$dbnames = 'basedata', 'carcom' # Edit if you want any other tables
+
 foreach ($dbname in $dbnames) {
     if ($dbname -eq 'imagerepository') {
         # the imagerepository table contains binary data. there's a separate script for extracting the images.
+        Write-Output "Skipping imagerepository database."
         continue
     }
 
-    # Get a list of all tables in the given databases
-    $db_tables = Invoke-Sqlcmd @parameters -Query @"
+    # Construct SQL query to get table names from the database
+    $query = @"
         SELECT TABLE_NAME
         FROM $($dbname).INFORMATION_SCHEMA.TABLES
         WHERE TABLE_TYPE = 'BASE TABLE';
 "@
 
-    # Make sure the target directory exists 
-    $folder = 'csv/' + $dbname + '/'
-    New-Item -ItemType Directory -Path $folder -ErrorAction SilentlyContinue
+    # Get the list of tables from the database
+    try {
+        $db_tables = Invoke-Sqlcmd @parameters -Database $dbname -Query $query -ErrorAction Stop
+    } catch {
+        Write-Error "Failed to retrieve tables from database $dbname. $_"
+        continue
+    }
 
-    # Write the contents of each table as CSVs
-    # TODO: This script takes VERY long to execute. Use threading?
+    # Create directory for CSV files if it doesn't exist
+    $folder = 'csv/' + $dbname + '/'
+    if (-not (Test-Path $folder -PathType Container)) {
+        try {
+            New-Item -Path $folder -ItemType Directory -ErrorAction Stop
+        } catch {
+            Write-Error "Failed to create directory $folder. $_"
+            continue
+        }
+    }
+
+    # Loop through each table and export its data to a CSV file
     foreach ($table_row in $db_tables) {
-        $table = $table_row.Item(0)
-        $file_path = $($folder + $table + '.csv')
-        Write-Output $table
+        $table = $table_row.TABLE_NAME
+        $file_path = Join-Path -Path $folder -ChildPath "$table.csv"
 
         if ($table -eq 'T111_Service') {
             # T111_Service contains binary data. extract_services.ps1 writes its CSV and extracts the definitions.
+            Write-Output "Skipping T111_Service table."
             continue
         }
 
-        # If the output is broken just comment out these next lines
+        # Check if CSV file already exists, if yes, skip exporting
         if (Test-Path $file_path -PathType Leaf) {
+            Write-Output "CSV file for table $table already exists. Skipping export."
             continue
         }
 
-        $rows = Invoke-Sqlcmd @parameters -Query @"
-            set nocount on;
-            SELECT * FROM $($dbname).dbo.$($table)
+        # Construct SQL query to select all data from the table
+        $query = @"
+            SELECT * FROM $($dbname).dbo.$table;
 "@
 
-        $rows | Export-Csv -Encoding UTF8 -UseQuotes AsNeeded -NoTypeInformation -path $file_path
-        Write-Output "Written $table"
+        # Execute SQL query and export data to CSV file
+        try {
+            $rows = Invoke-Sqlcmd @parameters -Database $dbname -Query $query -ErrorAction Stop
+            $rows | Export-Csv -Encoding UTF8 -UseQuotes AsNeeded -NoTypeInformation -path $file_path
+            Write-Output "Exported data from table $table to CSV file."
+        } catch {
+            Write-Error "Failed to export data from table $table. $_"
+            continue
+        }
     }
 }
