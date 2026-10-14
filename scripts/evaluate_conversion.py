@@ -11,8 +11,9 @@ operators = {
     '*': op.mul,
     '/': op.truediv,
     '^': op.pow,
-    '&': op.and_,
-    '|': op.or_,
+    # Calculator works with doubles and converts both sides of & and | to long, which truncates towards zero.
+    '&': lambda a, b: int(a) & int(b),
+    '|': lambda a, b: int(a) | int(b),
 }
 
 def conv_int(x: float | int) -> int:
@@ -133,7 +134,8 @@ def parse_conversion(expr: str) -> Node:
         else:
             return parse_conversion(expr[1:-1])
     
-    # Find the lowest operator in the expression and look for the first one.
+    # Find the last operator with the lowest precedence. Splitting there evaluates operators with the same precedence
+    # from left to right, like Vcc.Vida.DiagSwdl.BizServices.CarCom.VehicleServices.Calculator does.
     i = 0
     lowest_operator = None
     while i < len(expr):
@@ -156,20 +158,12 @@ def parse_conversion(expr: str) -> Node:
             ch = expr[i]
         
         if ch in operators:
-            if (ch == '-' and i == 0):
-                # This is a unary minus right at the start of the expression. We'll just treat it as a subtraction from
-                # 0 for the rest of the expression.
-                return BinaryOp(left=Value(0), op='-', right=parse_conversion(expr[1:]))
-            elif (ch == '-' and (expr[i-1] in operators or expr[i-1] == 'E')):
+            if (ch == '-' and i > 0 and (expr[i-1] in operators or expr[i-1] == 'E')):
                 # This is a unary minus operator either right after another operator or within exponential notation.
                 # We'll just skip it so that it will process as a single expression.
                 pass
-            elif lowest_operator is None or get_op_precedence(ch) < get_op_precedence(lowest_operator[0]):
+            elif lowest_operator is None or get_op_precedence(ch) <= get_op_precedence(lowest_operator[0]):
                 lowest_operator = (ch, i)
-        
-            # Early return when lowest possible found.
-            if get_op_precedence(lowest_operator[0]) == 0:
-                break
 
         i += 1
 
@@ -177,7 +171,9 @@ def parse_conversion(expr: str) -> Node:
         # This could only happen when there's only a single value, such as "5". This should be caught by is_number.
         raise ValueError()
 
-    left = parse_conversion(expr[:lowest_operator[1]])
+    # A unary minus at the start of the expression is a subtraction from 0. It only applies to the first term,
+    # so -2*3+10 is (0-2*3)+10.
+    left = parse_conversion(expr[:lowest_operator[1]]) if lowest_operator[1] > 0 else Value(0)
     right = parse_conversion(expr[lowest_operator[1]+1:])
     return BinaryOp(left=left, op=lowest_operator[0], right=right)
 

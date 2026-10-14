@@ -37,7 +37,13 @@ expressions = [
     ("3*(-1)+3", 0),
     ("10&0b11001010", 10),
     ("10&0xF", 10),
+    ("10.7&0xF", 10),
     ("(0x0E5E&0x03FF-512)*0.25", 23.5),
+    # Operators with the same precedence are evaluated from left to right
+    ("10-2-3", 5),
+    ("64/4/2", 8),
+    ("2^3^2", 64),
+    ("-2*3+10", 4),
 ]
 for expr in expressions:
     print(f"Evaluating {expr[0]}...")
