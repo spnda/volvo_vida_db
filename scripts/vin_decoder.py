@@ -17,6 +17,26 @@ class PartnerGroup(Enum):
     NOR = 1004
     CHI = 1005
 
+# See Vcc.Vida.DiagSwdl.Util.VehiclePlatforms
+class VehiclePlatform(Enum):
+    P1 = 'P1'
+    P2 = 'P2'
+    P3 = 'P3'
+    P4 = 'P4'
+    X40 = 'X40'
+    X70 = 'X70'
+
+# Platform of each vehicle model by VehicleModel.Cid.
+# This came from Vcc.Vida.DiagSwdl.Util.VehiclePlatform.GetPlatform.
+PLATFORMS = {
+    **dict.fromkeys([530, 533, 542, 544, 545], VehiclePlatform.P1),
+    **dict.fromkeys([184, 275, 285, 295, 384], VehiclePlatform.P2),
+    **dict.fromkeys([124, 134, 135, 136, 138, 144, 155, 156], VehiclePlatform.P3),
+    **dict.fromkeys([525, 526], VehiclePlatform.P4),
+    **dict.fromkeys([872, 873, 874, 875, 876], VehiclePlatform.X70),
+    **dict.fromkeys([644, 645], VehiclePlatform.X40),
+}
+
 # Represents a decoded vehicle from a VIN
 class Vehicle:
     def __init__(self, vin: str, row: pandas.Series):
@@ -44,6 +64,7 @@ class Vehicle:
             fkSteering IS NULL AND
             fkNodeECU IS NULL AND
             fkSpecialVehicle IS NULL
+            ORDER BY FolderLevel, Id
         """).df()
         return profiles['Id'].tolist()
 
@@ -51,14 +72,22 @@ class Vehicle:
         value = getattr(self, key)
         if value is None or value == 0:
             return ""
-        
+
         # We use getattr here so the names from read_csv.DatabaseFile need to match up with our member variable names
         get_csv(DatabaseFile[key])
         values = duckdb.execute(f"SELECT Description FROM {key} WHERE Id=?", [int(value)]).df() # somehow the getattr thing works with float64, but not with int64...
         if values.empty:
             raise ValueError(f'Invalid Vehicle: {key} not valid')
         return values['Description'].iloc[0]
-    
+
+    def get_platform(self) -> VehiclePlatform | None:
+        """
+        The platform (P1, P2, ...) of the vehicle model, or None for models VIDA assigns no platform to, like the 940.
+        """
+        get_csv(DatabaseFile.vehicle_model)
+        cid = duckdb.execute("SELECT Cid FROM vehicle_model WHERE Id=?", [int(self.vehicle_model)]).fetchone()
+        return PLATFORMS.get(cid[0]) if cid else None
+
     def print(self):
         """
         Pretty-prints the information from a vehicle.
@@ -71,6 +100,8 @@ class Vehicle:
         print(f'Body: {self.get_value_description("body_style")} [{self.body_style}]')
         print(f'Engine: {self.get_value_description("engine")} [{self.engine}]')
         print(f'Transmission: {self.get_value_description("transmission")} [{self.transmission}]')
+        platform = self.get_platform()
+        print(f'Platform: {platform.value if platform else "unknown"}')
         print(f'VIDA Profiles: {self.get_vehicle_profiles()}')
 
 def validate_vin(vin: str) -> bool:
@@ -90,15 +121,15 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
     """
     if not validate_vin(vin):
         raise ValueError('VIN string is not a valid VIN')
-    
+
     if vin[:3] != 'YV1':
         raise ValueError('VIN is not for a Volvo vehicle')
-    
+
     if cached and os.path.exists(f"{root_directory}/cache/{vin}.p"):
         # This import is to avoid namespace problems, making the class always be vin_decoder.Vehicle instead of __main__.Vehicle
         from vin_decoder import Vehicle
         return pickle.load(open(f"{root_directory}/cache/{vin}.p", "rb"))
-    
+
     get_csv(DatabaseFile.vin_decode_model)
     get_csv(DatabaseFile.vin_decode_variant)
 
@@ -147,7 +178,7 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
     if len(combined['fkVehicleModel'].unique()) > 1:
         # Only the vehicle model has to be unique. All other values can technically be unspecified by the VIN.
         raise ValueError('More than 1 vehicle appeared for VIN')
-    
+
     from vin_decoder import Vehicle
     vehicle = Vehicle(vin, combined.loc[0])
     if cached:

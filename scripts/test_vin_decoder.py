@@ -23,7 +23,7 @@ get_csvs(DatabaseFile.vehicle_model, DatabaseFile.model_year, DatabaseFile.partn
 for vin, partner in test_vins:
     try:
         vehicle = decode_vin(vin, partner_id=partner, cached=False)
-        print(vehicle.get_value_description("vehicle_model"))
+        print(vehicle.get_value_description("vehicle_model"), vehicle.get_platform())
         #vehicle.print()
     except ValueError as e:
         print("Failed lookup: " + str(e))
