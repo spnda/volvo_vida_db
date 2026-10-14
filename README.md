@@ -25,9 +25,9 @@ These profiles will become very important for the rest of the scripts.
 
 ### Getting CAN parameters
 
-Using `scripts/write_ecu_data.py` you can get a CSV file for each ECU for the given vehicle VIN.
-This will write a configs.csv file which contains information about how to interact with each ECU and through which physical bus.
-It will also write a CSV for each ECU containing information how to ask for specific data and how to interpret the bits.
+Using `scripts/carcom.py export <VIN>` you can get a CSV file for each ECU of the vehicle in the `ecu` folder.
+`ecus.csv` contains information about how to interact with each ECU and through which physical bus.
+The CSV of each ECU lists its identifiers and how to interpret the bits of each parameter, including the texts of its states.
 
 ### Processing data conversion functions
 
@@ -41,3 +41,33 @@ These use the CAN protocol and are used to perform certain actions, but can also
 Reading these scripts can allow us to figure out how the CAN-based protocol works and how we can make use of it. 
 
 The `sql/extract_scripts.ps1` can be used to extract all script metadata into CSV files and the actual scripts into decompressed XML files.
+
+### carcom.py and d2.py
+
+VIDA describes every ECU in its `carcom` database: how to reach it, which identifiers it can be asked for, and which
+bits of each answer mean what. It talks to P1/P2-era ECUs (V50, S60, ...) with Volvo's own D2 protocol over CAN.
+These two scripts reimplement both halves, so you can ask an ECU for a value and understand the answer without VIDA:
+
+- `scripts/carcom.py` reads the ECU and identifier definitions. It is a port of
+  `Vcc.Vida.DiagSwdl.BizServices.CarCom.VehicleServices.Blocks.BlockHandler`, so the results match what VIDA shows.
+- `scripts/d2.py` builds D2 request frames, joins multi-frame answers back together and decodes them with the
+  definitions from `carcom.py`. It came from `Vcc.Vida.DiagSwdl.VehCom2` (framing) and
+  `Vcc.Vida.DiagSwdl.BizServices.CarCom.VehicleServices.ResponseHandler` (decoding).
+
+```
+python volvo_vida_db/scripts/carcom.py ecus <VIN>                        # ECUs with address, bus and protocol
+python volvo_vida_db/scripts/carcom.py params "30728979 AA" --csv cem.csv  # identifiers and parameters of a CEM
+python volvo_vida_db/scripts/carcom.py dtcs "30684976  A"                # DTCs of an ECM
+python volvo_vida_db/scripts/carcom.py text "wheel speed"                # search all texts
+python volvo_vida_db/scripts/carcom.py types                             # all ECU types (also: addresses)
+python volvo_vida_db/scripts/d2.py 50 REID 1A04                          # frame to read 0x1A04 from the CEM (0x50)
+```
+
+Requests are sent on the 29-bit CAN ID `0x000FFFFE` as `<format byte> <ECU address> <service> <data>`, for example
+`CD 50 A6 1A 04 01 00 00`. VIDA does not know which CAN IDs the ECUs answer on: it accepts any odd 29-bit ID and takes
+the ECU address from the second byte. The docstring of `d2.py` describes the framing.
+
+Every identifier and value in the database has two sets of texts, units and scalings, which VIDA calls As and Ppe.
+As are the translated texts a technician sees (`30-supply`, unit `Volt`), Ppe the engineering names (`VBat_A_Sense`,
+unit `V`). VIDA shows As by default and falls back to Ppe where As is missing; `carcom.EcuBlocks` does the same and
+can be switched to Ppe with `mode='ppe'`. The two sets do not always agree, see the docstring of `carcom.py`.
