@@ -1,22 +1,24 @@
-scripts/__pycache__/
-*.pyc
-ecu/
+# Extracted data
 csv/
 images/
 extracted_scripts/
+
+# Generated data
+ecu/
+dbc/
 cache/
 
 # Python venv
+.venv/
 pyvenv.cfg
 bin/
 lib/
 include/
+scripts/__pycache__/
+*.pyc
 
 # OS stuff
 .DS_Store
-
-# virtual environment
-.venv/
 
 # DuckDB database built by scripts/build_database.py
 vida.duckdb
