@@ -79,16 +79,15 @@ def is_number(expr: str) -> bool:
     return bool(re.fullmatch(r'^[+-]?([0-9]*[.])?[0-9]+(E[+-]?[0-9]+)?$', expr)) or bool(re.fullmatch(r'(0x)[0-9A-Fa-f]+', expr)) or bool(re.fullmatch(r'(0b)[0-1]+', expr))
 
 def parse_number(expr: str) -> int | float:
-    if len(expr) <= 2:
-        return int(expr)
-    if expr.startswith('0x'):
-        return int(expr[2:], base=16)
-    elif expr.startswith('0b'):
-        return int(expr[2:], base=2)
-    elif '.' in expr:
+    try:
+        # This will automatically handle 0x and 0b prefixes, and 0o (octal) isn't handled by VIDA either
+        # so it shouldn't be something present in any dataset, but we'll guard against it to avoid
+        # funny behavior
+        if expr[:2].lower() == '0o':
+            raise ValueError()
+        return int(expr, 0)
+    except ValueError:
         return float(expr)
-    else:
-        return int(expr)
 
 def is_func_or_bracketted(expr: str) -> bool:
     """
@@ -96,12 +95,12 @@ def is_func_or_bracketted(expr: str) -> bool:
     """
     if '(' not in expr:
         return False
-    
+
     bracket_idx = expr.index('(')
     if bracket_idx != 0 and not expr[:bracket_idx].isalpha():
         # If the brackets don't start at the beginning and there is no function name before the brackets, return False.
         return False
-    
+
     i = bracket_idx
     brackets = 0
     while i < len(expr):
@@ -109,9 +108,9 @@ def is_func_or_bracketted(expr: str) -> bool:
             brackets += 1
         elif expr[i] == ')':
             brackets -= 1
-            
+
         i += 1
-        
+
         if brackets == 0 and i != len(expr):
             # The initial brackets have been closed and we're not at the end.
             return False
@@ -123,17 +122,17 @@ def parse_conversion(expr: str) -> Node:
 
     if expr.lower() == 'x':
         return Variable()
-    
+
     if is_number(expr):
         return Value(value=parse_number(expr))
-    
+
     if is_func_or_bracketted(expr):
         bracket_idx = expr.index('(')
         if expr[:bracket_idx].isalpha():
             return Function(arg=parse_conversion(expr[bracket_idx+1:-1]), func=expr[:bracket_idx])
         else:
             return parse_conversion(expr[1:-1])
-    
+
     # Find the last operator with the lowest precedence. Splitting there evaluates operators with the same precedence
     # from left to right, like Vcc.Vida.DiagSwdl.BizServices.CarCom.VehicleServices.Calculator does.
     i = 0
@@ -151,12 +150,12 @@ def parse_conversion(expr: str) -> Node:
                 i += 1
                 if brackets == 0:
                     break
-            
+
             if i == len(expr):
                 # The brackets end with the expression, directly quit the loop
                 break
             ch = expr[i]
-        
+
         if ch in operators:
             if (ch == '-' and i > 0 and (expr[i-1] in operators or expr[i-1] == 'E')):
                 # This is a unary minus operator either right after another operator or within exponential notation.
@@ -177,12 +176,14 @@ def parse_conversion(expr: str) -> Node:
     right = parse_conversion(expr[lowest_operator[1]+1:])
     return BinaryOp(left=left, op=lowest_operator[0], right=right)
 
-def evaluate_conversion(x: int, conversion: str) -> float:
+def evaluate_conversion(x: float, conversion: str) -> float:
     return evaluate_ast(parse_conversion(conversion), x)
+
+def evaluate_conversion_from_str(x: str, conversion: str) -> float:
+    return evaluate_ast(parse_conversion(conversion), parse_number(x))
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
-        print('Usage: evaluate_conversion.py <integer value for x> <expression>')
+        print('Usage: evaluate_conversion.py <value for x> <expression>')
     else:
-        print(evaluate_conversion(int(sys.argv[1]), sys.argv[2]))
-    
+        print(evaluate_conversion_from_str(sys.argv[1], sys.argv[2]))
