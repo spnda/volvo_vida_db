@@ -294,8 +294,8 @@ def get_hw_settings(profile_identifiers: Iterable[str]) -> dict[str, str]:
 def get_ecu_services(ecu_variant_id: int) -> pd.DataFrame:
     """
     Returns all diagnostic services (T111_Service) that an ECU variant supports according to T110.
-    Note that the service definition XML (T111_Service.definition) is a binary column which the CSV export
-    could not represent.
+    The service definition XML (T111_Service.definition) is not part of the CSV; sql/extract_services.ps1 writes
+    it to extracted_services/<service_id>.xml.
     """
     get_csvs(DatabaseFile.t110, DatabaseFile.t111, DatabaseFile.t122)
     return _sql("""

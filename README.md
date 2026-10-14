@@ -51,6 +51,8 @@ These use the CAN protocol and are used to perform certain actions, but can also
 Reading these scripts can allow us to figure out how the CAN-based protocol works and how we can make use of it. 
 
 The `sql/extract_scripts.ps1` can be used to extract all script metadata into CSV files and the actual scripts into decompressed XML files.
+Similarly, `sql/extract_services.ps1` writes the diagnostic services (`carcom.T111_Service`) into a CSV file and the
+service definitions into XML files in `extracted_services/`.
 
 ### carcom.py and d2.py
 

@@ -25,6 +25,11 @@ foreach ($dbname in $dbnames) {
         $file_path = $($folder + $table + '.csv')
         Write-Output $table
 
+        if ($table -eq 'T111_Service') {
+            # T111_Service contains binary data. extract_services.ps1 writes its CSV and extracts the definitions.
+            continue
+        }
+
         # If the output is broken just comment out these next lines
         if (Test-Path $file_path -PathType Leaf) {
             continue

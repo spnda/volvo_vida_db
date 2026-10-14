@@ -1,7 +1,8 @@
 # Extracted data
 csv/
-images/
+extracted_images/
 extracted_scripts/
+extracted_services/
 
 # Generated data
 ecu/
