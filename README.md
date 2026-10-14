@@ -14,6 +14,11 @@ Depending on wether PowerShell 7 and the SQLServer module are installed, you can
 The PowerShell scripts can take longer than the Batch script does to generate, but is capable of outputting completely correct files.
 The PowerShell script uses the `UseQuotes` option on `Export-Csv` which was introduced in PowerShell 7. On Windows 7 Professional the last working version of PowerShell 7 is 7.2.9.
 The SQL credentials are already written into the scripts and won't need to be changed.
+The PowerShell scripts all need the `SqlServer` module. Recent versions of the `SqlServer` module required for the `Invoke-Sqlcmd` command do not run on PowerShell 7.2.9. Therefore, I recommend to install SqlServer 22.1.1:
+```powershell
+Install-Module SqlServer -RequiredVersion 22.1.1 -Scope CurrentUser
+Import-Module SqlServer -RequiredVersion 22.1.1
+```
 
 #### Acquiring the .NET DICE interface services
 
