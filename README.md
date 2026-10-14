@@ -6,12 +6,22 @@ Some SQL statements are based on procedures found in the VIDA SQL Server databas
 
 The Python scripts use duckdb and pandas to work with the data.
 
-### Extracting data from the database
+## Getting the data
+
+#### Extracting data from the database
 
 Depending on wether PowerShell 7 and the SQLServer module are installed, you can either use `generate_csv.ps1` or `generate_csv.bat`.
 The PowerShell scripts can take longer than the Batch script does to generate, but is capable of outputting completely correct files.
 The PowerShell script uses the `UseQuotes` option on `Export-Csv` which was introduced in PowerShell 7. On Windows 7 Professional the last working version of PowerShell 7 is 7.2.9.
 The SQL credentials are already written into the scripts and won't need to be changed.
+
+#### Acquiring the .NET DICE interface services
+
+VIDA needs to communicate with the DICE adapter through a service, which is apparently called "VidaEar" and is located in `VIDA/jboss/standalone/deployments/VidaEar.ear/VidaWeb.war/Diagnostics`. That folder contains quite a few DLLs which when inspected with a .NET decompiler like dotPeek reveal that they have not been stripped from debug information and actually still contain their NUnit unit tests! The same goes for all the Java applications found within VIDA I have looked at so far. The `BizServices` implement the VIDA scripting service (the thing that executes XML scripts) and all of the services that read data from the SQL database.
+
+Using these applications/services it was fairly easy to reproduce the behavior and have actual test data to test our own implementation against. It also drastically helped to narrow down how VIDA/DICE actually communicate with the car and what all of the data in the SQL database means and how we can use it.
+
+## Running the scripts
 
 ### Getting vehicle profiles
 
