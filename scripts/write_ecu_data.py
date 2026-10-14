@@ -35,7 +35,7 @@ if __name__ == '__main__':
                 config = get_ecu_config(row['EcuVariantIdentifier']).df()
                 ecu_configs.append(config)
 
-        os.mkdir(f'{root_directory}/ecu')
+        os.makedirs(f'{root_directory}/ecu', exist_ok=True)
 
         configs = pd.concat(ecu_configs, axis=0)
         print('Writing CAN config for ECUs...')

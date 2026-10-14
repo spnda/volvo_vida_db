@@ -53,6 +53,7 @@ class Vehicle:
             return ""
         
         # We use getattr here so the names from read_csv.DatabaseFile need to match up with our member variable names
+        get_csv(DatabaseFile[key])
         values = duckdb.execute(f"SELECT Description FROM {key} WHERE Id=?", [int(value)]).df() # somehow the getattr thing works with float64, but not with int64...
         if values.empty:
             raise ValueError(f'Invalid Vehicle: {key} not valid')
@@ -93,7 +94,7 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
     if vin[:3] != 'YV1':
         raise ValueError('VIN is not for a Volvo vehicle')
     
-    if cached and os.path.exists(f"cache/{vin}.p"):
+    if cached and os.path.exists(f"{root_directory}/cache/{vin}.p"):
         # This import is to avoid namespace problems, making the class always be vin_decoder.Vehicle instead of __main__.Vehicle
         from vin_decoder import Vehicle
         return pickle.load(open(f"{root_directory}/cache/{vin}.p", "rb"))
@@ -150,8 +151,8 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
     from vin_decoder import Vehicle
     vehicle = Vehicle(vin, combined.loc[0])
     if cached:
-        if not os.path.isdir("cache"):
-            os.makedirs("cache")
+        if not os.path.isdir(f"{root_directory}/cache"):
+            os.makedirs(f"{root_directory}/cache")
         pickle.dump(vehicle, open(f"{root_directory}/cache/{vin}.p", "wb"))
     return vehicle
 

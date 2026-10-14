@@ -17,3 +17,6 @@ include/
 
 # virtual environment
 .venv/
+
+# DuckDB database built by scripts/build_database.py
+vida.duckdb
