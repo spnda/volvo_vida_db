@@ -112,7 +112,7 @@ def decode_vin(vin: str, partner_id: PartnerGroup = PartnerGroup.EUR, cached: bo
         AND VM.fkModelYear = VV.fkModelYear
         AND (SUBSTRING('{vin}' from VM.VinStartPos for VM.VinEndPos - VM.VinStartPos + 1) = VM.VinCompare)
         AND (SUBSTRING('{vin}' from VV.VinStartPos for VV.VinEndPos - VV.VinStartPos + 1) = VV.VinCompare)
-        AND (RIGHT('{vin}', 6) BETWEEN VM.ChassisNoFrom AND VM.ChassisNoTo)
+        AND (CAST(RIGHT('{vin}', 6) AS BIGINT) BETWEEN VM.ChassisNoFrom AND VM.ChassisNoTo)
         AND (VM.Yearcode = SUBSTRING('{vin}', VM.Yearcodepos, 1) OR VM.Yearcode IS NULL)
         AND VM.fkPartnerGroup = VV.fkPartnerGroup
         AND VM.fkPartnerGroup = {partner_id.value}
