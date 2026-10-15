@@ -1,6 +1,6 @@
 . $PSScriptRoot\sql_server.ps1
 
-$dbnames = 'basedata', 'carcom' # Edit if you want any other tables
+$dbnames = 'basedata', 'carcom', 'DiagSwdlRepository' # Edit if you want any other tables
 
 foreach ($dbname in $dbnames) {
     if ($dbname -eq 'imagerepository') {
@@ -45,6 +45,11 @@ foreach ($dbname in $dbnames) {
             Write-Output "Skipping T111_Service table."
             continue
         }
+        if ($dbname -eq 'DiagSwdlRepository' -and $table_row.TABLE_NAME.StartsWith('Script')) {
+            # Script extraction is handled by extract_scripts.ps1
+            Write-Output "Skipping $($table_row.TABLE_NAME) table."
+            continue
+        }
 
         # Check if CSV file already exists, if yes, skip exporting
         if (Test-Path $file_path -PathType Leaf) {
@@ -59,9 +64,9 @@ foreach ($dbname in $dbnames) {
 
         # Execute SQL query and export data to CSV file
         try {
+            Write-Output "Exporting data from table $table to CSV file..."
             $rows = Invoke-Sqlcmd @parameters -Database $dbname -Query $query -ErrorAction Stop
             $rows | Export-Csv -Encoding UTF8 -UseQuotes AsNeeded -NoTypeInformation -path $file_path
-            Write-Output "Exported data from table $table to CSV file."
         } catch {
             Write-Error "Failed to export data from table $table. $_"
             continue

@@ -6,6 +6,8 @@ $graphics = Invoke-Sqlcmd @parameters -MaxBinaryLength 10000000 -Query @"
 
 New-Item -ItemType Directory -Path 'extracted_images' | Out-Null
 foreach ($row in $graphics) {
+    Write-Output "Writing script '$($row.fkGraphic)'..."
+
     $file = "$PWD\extracted_images\$($row.path)"
     [System.IO.File]::WriteAllBytes($file, $row.imageData)
 }
