@@ -32,9 +32,9 @@ foreach ($row in $rows) {
     # TODO: Using MemoryStream and ZipArchive, it should be possible to do this in memory with .NET
     $zip_file = "$PWD\extracted_scripts\$($row.fkScript).zip"
     [System.IO.File]::WriteAllBytes($zip_file, $row.XmlDataCompressed)
-    
+
     # Extract the script XML from the archive, and give it an xml ending
-    Expand-Archive -Path $zip_file -DestinationPath "$PWD\extracted_scripts"
-    Rename-Item -Path "$PWD\extracted_scripts\$($row.fkScript)" -NewName "$PWD\extracted_scripts\$($row.fkScript).xml"
+    Expand-Archive -Path $zip_file -DestinationPath "$PWD\extracted_scripts" -Force
+    Move-Item -Path "$PWD\extracted_scripts\$($row.fkScript)" -Destination "$PWD\extracted_scripts\$($row.fkScript).xml" -Force
     Remove-Item -Path $zip_file
 }

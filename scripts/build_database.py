@@ -27,6 +27,7 @@ def build_database(output: str):
             if not os.path.exists(csv_path(csv_file)):
                 print(f'{csv_file.name}: {csv_path(csv_file)} not found, skipped')
                 continue
+
             start = time.time()
             read_csv_file(csv_file, connection).create(csv_file.name)
             rows = connection.table(csv_file.name).count('*').fetchone()[0]
