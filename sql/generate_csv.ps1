@@ -1,6 +1,6 @@
 . $PSScriptRoot\sql_server.ps1
 
-$dbnames = 'basedata', 'carcom', 'DiagSwdlRepository' # Edit if you want any other tables
+$dbnames = 'basedata', 'carcom', 'DiagSwdlRepository', 'DiceTiming' # Edit if you want any other tables
 
 foreach ($dbname in $dbnames) {
     if ($dbname -eq 'imagerepository') {
@@ -20,17 +20,17 @@ foreach ($dbname in $dbnames) {
     try {
         $db_tables = Invoke-Sqlcmd @parameters -Database $dbname -Query $query -ErrorAction Stop
     } catch {
-        Write-Error "Failed to retrieve tables from database $dbname. $_"
+        Write-Error "Failed to retrieve tables from database '$dbname'. $_"
         continue
     }
 
     # Create directory for CSV files if it doesn't exist
-    $folder = 'csv/' + $dbname + '/'
+    $folder = "csv/$dbname/"
     if (-not (Test-Path $folder -PathType Container)) {
         try {
             New-Item -Path $folder -ItemType Directory -ErrorAction Stop
         } catch {
-            Write-Error "Failed to create directory $folder. $_"
+            Write-Error "Failed to create directory '$folder'. $_"
             continue
         }
     }
@@ -53,7 +53,7 @@ foreach ($dbname in $dbnames) {
 
         # Check if CSV file already exists, if yes, skip exporting
         if (Test-Path $file_path -PathType Leaf) {
-            Write-Output "CSV file for table $table already exists. Skipping export."
+            Write-Output "CSV file for table '$table' already exists. Skipping export."
             continue
         }
 
@@ -64,11 +64,11 @@ foreach ($dbname in $dbnames) {
 
         # Execute SQL query and export data to CSV file
         try {
-            Write-Output "Exporting data from table $table to CSV file..."
+            Write-Output "Exporting data from table '$table' to CSV file..."
             $rows = Invoke-Sqlcmd @parameters -Database $dbname -Query $query -ErrorAction Stop
             $rows | Export-Csv -Encoding UTF8 -UseQuotes AsNeeded -NoTypeInformation -path $file_path
         } catch {
-            Write-Error "Failed to export data from table $table. $_"
+            Write-Error "Failed to export data from table '$table'. $_"
             continue
         }
     }
