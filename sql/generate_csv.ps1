@@ -1,6 +1,6 @@
 . $PSScriptRoot\sql_server.ps1
 
-$dbnames = 'basedata', 'carcom', 'DiagSwdlRepository', 'DiceTiming' # Edit if you want any other tables
+$dbnames = 'basedata', 'carcom', 'DiagSwdlRepository', 'DiceTiming', 'servicerep_en-US' # Edit if you want any other tables
 
 foreach ($dbname in $dbnames) {
     if ($dbname -eq 'imagerepository') {
@@ -12,7 +12,7 @@ foreach ($dbname in $dbnames) {
     # Construct SQL query to get table names from the database
     $query = @"
         SELECT TABLE_NAME
-        FROM $($dbname).INFORMATION_SCHEMA.TABLES
+        FROM [$($dbname)].INFORMATION_SCHEMA.TABLES
         WHERE TABLE_TYPE = 'BASE TABLE';
 "@
 
@@ -59,7 +59,7 @@ foreach ($dbname in $dbnames) {
 
         # Construct SQL query to select all data from the table
         $query = @"
-            SELECT * FROM $($dbname).dbo.$table;
+            SELECT * FROM [$($dbname)].dbo.$table;
 "@
 
         # Execute SQL query and export data to CSV file
